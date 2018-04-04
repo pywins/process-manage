@@ -7,19 +7,21 @@ import os
 import signal
 import sys
 import time
-from multiprocessing import Process
 
-import singleton
+from multiprocessing import Process
+from singleton import singleton
 
 from app.logger import logger
+from workers.base import BaseWorker
 
 
-@singleton.singleton()
+@singleton()
 class Application:
     def __init__(self):
         self.config = {}
         self.workers = {}
-        self.reap_pids = []
+        self.list_reap_pid = []
+        self.checker = self.check_workers()
 
     def run(self, config):
         self.config = config
@@ -29,38 +31,13 @@ class Application:
 
         self.setup()
         self.start_workers(workers_dir)
-        self.check_workers()
 
-    def check_workers(self):
-        """
-        检查子进程是否异常：如果子进程的处理在主进程的管理对象中，则重启，如果是异常数据则丢弃
-        :return:
-        """
+        # init the checker generator
+        self.checker.send(None)
+
         while True:
             time.sleep(1)
-
-            if not self.reap_pids or not self.workers:
-                continue
-
-            for pid in self.reap_pids:
-                if pid not in self.workers.keys():
-                    self.reap_pids.remove(pid)
-                    continue
-
-                worker = self.workers.get(pid)
-                if not isinstance(worker, dict) or 'cls' not in worker.keys():
-                    self.reap_pids.remove(pid)
-                    del self.workers[pid]
-                    continue
-                class_name = worker.get('cls')
-                logger.info(f"Restart worker{class_name}")
-                o = class_name()
-                p = Process(target=o.run, args=())
-                p.start()
-                self.workers[p.pid] = worker
-
-                self.reap_pids.remove(pid)
-                del self.workers[pid]
+            pass
 
     def start_workers(self, workers_dir):
         """
@@ -70,7 +47,7 @@ class Application:
         """
         workers_dir = os.path.abspath(workers_dir)
         sys.path.append(workers_dir)
-        from workers.base import BaseWorker
+
         for module_name in os.listdir(workers_dir):
             if module_name == "__init__.py" or module_name == "base.py" or module_name[-3:] != ".py":
                 continue
@@ -83,7 +60,7 @@ class Application:
                 o = class_name()
 
                 if isinstance(o, BaseWorker):
-                    p = Process(target=o.run, args=())
+                    p = Process(target=o.run)
                     p.start()
                     self.workers[p.pid] = {"cls": class_name}
 
@@ -105,9 +82,47 @@ class Application:
         :param frame:
         :return:
         """
-        while True:
-            logger.info("Try clear Zombie child process.")
+        logger.info("Try clear zombie child process.")
+        next(self.checker)
 
+    def check_workers(self):
+        """
+        检查子进程是否异常：如果子进程的处理在主进程的管理对象中，则重启，如果是异常数据则丢弃
+        :return:
+        """
+        while True:
+            logger.debug("before reap zombie process.")
+            yield
+            logger.debug("begin reap zombie process.")
+
+            self.get_zombie_pid()
+
+            if not self.list_reap_pid:
+                continue
+
+            for pid in self.list_reap_pid:
+                if pid not in self.workers.keys():
+                    continue
+
+                worker = self.workers.get(pid)
+
+                if not isinstance(worker, dict) or 'cls' not in worker.keys():
+                    del self.workers[pid]
+                    continue
+
+                class_name = worker.get('cls')
+                logger.info(f"Restart worker{class_name}")
+                o = class_name()
+                p = Process(target=o.run)
+                p.start()
+                self.workers[p.pid] = worker
+
+                del self.workers[pid]
+
+            logger.debug("after reap zombie process.")
+
+    def get_zombie_pid(self):
+        while True:
             try:
                 child_pid, status = os.waitpid(-1, os.WNOHANG)
 
@@ -117,8 +132,8 @@ class Application:
 
                 exitcode = status >> 8
                 logger.info(f"Child process {child_pid} exit with code {exitcode}!")
+                self.list_reap_pid.append(child_pid)
 
-                self.reap_pids.append(child_pid)
-            except Exception as e:
-                logger.error(f"Handle SIGCHLD failed.{e}")
+            except OSError as e:
+                logger.error(f"Handle SIGCHLD failed.{e}.")
                 break
