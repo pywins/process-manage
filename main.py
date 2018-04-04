@@ -11,7 +11,7 @@ workers_dir = './workers'
 
 
 if __name__ == '__main__':
-    app = Application.instance()
+    app = Application()
 
     config = {'workers_dir': workers_dir}
 

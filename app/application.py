@@ -9,12 +9,12 @@ import sys
 import time
 from multiprocessing import Process
 
-import singleton.singleton as singleton
+import singleton
 
 from app.logger import logger
 
 
-@singleton.Singleton
+@singleton.singleton()
 class Application:
     def __init__(self):
         self.config = {}
