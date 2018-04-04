@@ -43,22 +43,20 @@ class Application:
                 continue
 
             for pid in self.reap_pids:
-                logger.debug("1")
                 if pid not in self.workers.keys():
                     self.reap_pids.remove(pid)
                     continue
 
                 worker = self.workers.get(pid)
-                logger.debug("2")
                 if not isinstance(worker, dict) or 'cls' not in worker.keys():
                     self.reap_pids.remove(pid)
                     del self.workers[pid]
                     continue
-                logger.debug("3")
                 class_name = worker.get('cls')
                 logger.info(f"Restart worker{class_name}")
                 o = class_name()
                 p = Process(target=o.run, args=())
+                p.start()
                 self.workers[p.pid] = worker
 
                 self.reap_pids.remove(pid)

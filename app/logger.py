@@ -21,5 +21,5 @@ datefmt = "%a %d %b %Y %H:%M:%S"
 formatter = logging.Formatter(fmt, datefmt)
 
 # add handler and formatter to logger
-# fh.setFormatter(formatter)
-# logger.addHandler(fh)
+fh.setFormatter(formatter)
+logger.addHandler(fh)
