@@ -7,8 +7,8 @@ import os
 import signal
 import sys
 import time
-
 from multiprocessing import Process
+
 from singleton import singleton
 
 from app.decorator import wins_coro
@@ -94,10 +94,7 @@ class Application:
         :return:
         """
         while True:
-            logger.debug("before reap zombie process.")
             yield
-            logger.debug("begin reap zombie process.")
-
             self.get_zombie_pid()
 
             if not self.list_reap_pid:
