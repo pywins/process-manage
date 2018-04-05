@@ -11,6 +11,7 @@ import time
 from multiprocessing import Process
 from singleton import singleton
 
+from app.decorator import wins_coro
 from app.logger import logger
 from workers.base import BaseWorker
 
@@ -32,8 +33,8 @@ class Application:
         self.setup()
         self.start_workers(workers_dir)
 
-        # init the checker generator
-        self.checker.send(None)
+        # # init the checker generator
+        # self.checker.send(None)
 
         while True:
             time.sleep(1)
@@ -46,6 +47,7 @@ class Application:
         :return:
         """
         workers_dir = os.path.abspath(workers_dir)
+        # TODO  No module named 'PutWorker' if comment
         sys.path.append(workers_dir)
 
         for module_name in os.listdir(workers_dir):
@@ -85,6 +87,7 @@ class Application:
         logger.info("Try clear zombie child process.")
         next(self.checker)
 
+    @wins_coro
     def check_workers(self):
         """
         检查子进程是否异常：如果子进程的处理在主进程的管理对象中，则重启，如果是异常数据则丢弃
