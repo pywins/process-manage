@@ -1,6 +1,6 @@
 # TODO LIST
 
-## Funciton support
+## unciton support
 
 - config support
 
@@ -19,6 +19,13 @@
     2018-04-05 14:06:18 [45739] [DEBUG] ModuleNotFoundError at logger.py(34)
     2018-04-05 14:06:18 [45739] [DEBUG] : at logger.py(34)
     2018-04-05 14:06:18 [45739] [DEBUG] No module named 'PutWorker' at logger.py(34)
+
+   we need:
+    2018-04-05 14:06:18 [45739] [DEBUG] Traceback (most recent call last): at logger.py(34)
+                                        File "/Users/william/python/process-manage/main.py", line 18, in <module> at logger.py(34)
+                                        ......
+                                        No module named 'PutWorker' at logger.py(34)
+
 ```
 
 - [ERROR] Handle SIGCHLD failed.[Errno 10] No child processes. at application.py(141)
