@@ -5,6 +5,8 @@
 
 import logging
 import sys
+from enum import Enum, unique
+from .configurator import env
 
 
 class _Stream2Logger(object):
@@ -37,6 +39,10 @@ class _Stream2Logger(object):
         pass
 
 
+LOG_HANDLE_FILE = "file"
+LOG_HANDLE_STDOUT = "stdout"
+
+
 class _Logger(logging.Logger):
     """
     Create my logger class which defined the format and the handlers.
@@ -51,35 +57,55 @@ class _Logger(logging.Logger):
         logging.Logger.__init__(self, name, level)
 
         # create formatter
-        log_format = "%(asctime)-15s [%(process)d] [%(levelname)s] %(message)s at %(filename)s(%(lineno)d)"
+        log_format = "%(asctime)-15s [%(process)d] [%(levelname)s] %(message)s %(filename)s(%(lineno)d)"
         date_format = "%Y-%m-%d %X"
         formatter = logging.Formatter(log_format, date_format)
 
-        # create file handler
-        log_path = "./log.log"
-        file_handler = logging.FileHandler(log_path)
-        file_handler.setLevel(level)
+        log_out = env("log_out", "log", [LOG_HANDLE_STDOUT])
+        log_path = env("log_file", "log")
 
-        # add handler and formatter to logger
-        file_handler.setFormatter(formatter)
-        self.addHandler(file_handler)
+        if log_path and LOG_HANDLE_FILE in log_out:
+            # create file handler
+            file_handler = logging.FileHandler(log_path)
+            file_handler.setLevel(level)
 
-        # create stdout handler
-        stdout_handler = logging.StreamHandler(sys.stdout)
-        stdout_handler.setLevel(level)
+            # add handler and formatter to logger
+            file_handler.setFormatter(formatter)
+            self.addHandler(file_handler)
 
-        # add handler and formatter to logger
-        stdout_handler.setFormatter(formatter)
-        self.addHandler(stdout_handler)
+        if LOG_HANDLE_STDOUT in log_out:
+            # create stdout handler
+            stdout_handler = logging.StreamHandler(sys.stdout)
+            stdout_handler.setLevel(level)
 
-        # redirect stdout & stderr
-        sl = _Stream2Logger(self, level)
-        sys.stdout = sl
-        sys.stderr = sl
+            # add handler and formatter to logger
+            stdout_handler.setFormatter(formatter)
+            self.addHandler(stdout_handler)
 
+            # redirect stdout & stderr
+            sl = _Stream2Logger(self, level)
+            sys.stdout = sl
+            sys.stderr = sl
+
+        self.debug("logger module have been loaded")
+
+
+@unique
+class _LogLevelMapping(Enum):
+    DEBUG = logging.DEBUG,
+    INFO = logging.INFO,
+    WARN = logging.WARN,
+    ERROR = logging.ERROR
+
+
+_level = logging.NOTSET
+try:
+    _log_level = env("log_level", "log", "DEBUG")
+    _level = int(_LogLevelMapping[_log_level].value[0])
+except TypeError as e:
+    raise Exception("Invalid log level.")
 
 # create logger
-logger_name = "ProcessManager"
 logging.setLoggerClass(_Logger)
-logger = logging.getLogger(logger_name)
-logger.setLevel(logging.DEBUG)
+logger = logging.getLogger('ProcessManager')
+logger.setLevel(_level)
