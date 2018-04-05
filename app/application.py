@@ -4,9 +4,9 @@
 # @File    : base.py
 
 import os
+import select
 import signal
 import sys
-import time
 from multiprocessing import Process
 
 from singleton import singleton
@@ -37,7 +37,8 @@ class Application:
         # self.checker.send(None)
 
         while True:
-            time.sleep(1)
+            # just simple suspend
+            select.select([], [], [], 1.0)
             pass
 
     def start_workers(self, workers_dir):
