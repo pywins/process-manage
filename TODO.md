@@ -1,6 +1,6 @@
 # TODO LIST
 
-## Function missing
+## The function of the missing
 
 - [x] config support
 - [ ] pid storage to file 
