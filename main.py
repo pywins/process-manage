@@ -7,6 +7,6 @@ import os
 import app
 
 if __name__ == '__main__':
-    app.run('app.conf')
+    app.run('conf/app.conf')
 
     print(f'All subprocesses done.{os.getpid()}')
