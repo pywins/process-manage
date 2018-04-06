@@ -1,8 +1,9 @@
 # TODO LIST
 
-## unciton support
+## Function missing
 
-- config support
+- ~~config support~~
+
 
 ## Issue
 
