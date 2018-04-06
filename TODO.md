@@ -3,7 +3,9 @@
 ## Function missing
 
 - ~~config support~~
-
+- pid storage to file 
+- graceful kill child process
+- maybe we should reconstruct the logger module
 
 ## Issue
 
