@@ -18,7 +18,7 @@ setup(
     long_description=open('README.md').read(),
     keywords=["precess-manage", "pywins"],
     author='pywins',
-    install_requires=['pysingleton', 'setproctitle'],
+    install_requires=['pysingleton', 'setproctitle', 'toml'],
     packages=['precess-manage'],
     license="MIT",
     classifiers=[

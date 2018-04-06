@@ -4,17 +4,9 @@
 # @File    : base.py
 
 import os
-
-from app.application import Application
-
-workers_dir = './workers'
-
+import app
 
 if __name__ == '__main__':
-    app = Application()
-
-    config = {'workers_dir': workers_dir}
-
-    app.run(config)
+    app.run('app.conf')
 
     print(f'All subprocesses done.{os.getpid()}')

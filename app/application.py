@@ -8,11 +8,12 @@ import select
 import signal
 import sys
 from multiprocessing import Process
-
 from singleton import singleton
 
-from app.decorator import wins_coro
-from app.logger import logger
+from .decorator import wins_coro
+from .configurator import env
+from .logger import logger
+
 from workers.base import BaseWorker
 
 
@@ -24,9 +25,8 @@ class Application:
         self.list_reap_pid = []
         self.checker = self.check_workers()
 
-    def run(self, config):
-        self.config = config
-        workers_dir = self.config.get("workers_dir")
+    def run(self):
+        workers_dir = env("workers_dir", section="workers")
 
         logger.info("app started")
 
