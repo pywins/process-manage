@@ -11,7 +11,10 @@ from workers.base import BaseWorker
 class PutWorker(BaseWorker):
     def run(self, *args, **kv):
         print("run ...")
-        for x in range(20):
+        x = 0
+        while self.alive:
             print(x)
             time.sleep(1)
+            x += 1
+
         print("end ...")

@@ -8,6 +8,8 @@ import select
 import signal
 import sys
 from multiprocessing import Process
+
+import time
 from singleton import singleton
 
 from .decorator import wins_coro
@@ -38,7 +40,9 @@ class Application:
 
         while True:
             # just simple suspend
-            select.select([], [], [], 1.0)
+            time.sleep(1)
+            print(self.workers)
+            # select.select([], [], [], 1.0)
             pass
 
     def start_workers(self, workers_dir):
@@ -63,7 +67,7 @@ class Application:
                 o = class_name()
 
                 if isinstance(o, BaseWorker):
-                    p = Process(target=o.run)
+                    p = Process(target=o.start)
                     p.start()
                     self.workers[p.pid] = {"cls": class_name}
 
@@ -106,7 +110,7 @@ class Application:
                     continue
 
                 worker = self.workers.get(pid)
-
+                # TODO not isinstance(worker, dict) mean ???
                 if not isinstance(worker, dict) or 'cls' not in worker.keys():
                     del self.workers[pid]
                     continue
@@ -114,7 +118,7 @@ class Application:
                 class_name = worker.get('cls')
                 logger.info(f"Restart worker{class_name}")
                 o = class_name()
-                p = Process(target=o.run)
+                p = Process(target=o.start)
                 p.start()
                 self.workers[p.pid] = worker
 
