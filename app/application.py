@@ -63,7 +63,7 @@ class Application:
                 o = class_name()
 
                 if isinstance(o, BaseWorker):
-                    p = Process(target=o.run)
+                    p = Process(target=o.start)
                     p.start()
                     self.workers[p.pid] = {"cls": class_name}
 
@@ -114,7 +114,7 @@ class Application:
                 class_name = worker.get('cls')
                 logger.info(f"Restart worker{class_name}")
                 o = class_name()
-                p = Process(target=o.run)
+                p = Process(target=o.start)
                 p.start()
                 self.workers[p.pid] = worker
 
