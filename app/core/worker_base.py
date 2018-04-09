@@ -109,7 +109,8 @@ class WorkerManager:
     def sig_child_listener_callback(self):
         while True:
             self._sig_child_queue.get()
-            next(self.checker)
+            with self._lock:
+                next(self.checker)
 
     def _new_worker(self, meta: WorkerMetadata):
         logger.debug(f"start worker{meta}")
@@ -144,7 +145,8 @@ class WorkerManager:
                 continue
 
             for pid in self.list_reap_pid:
-                pass
+                self.list_reap_pid.remove(pid)
+                self._worker_count -= 1
 
             logger.debug("after reap zombie process.")
 
@@ -160,8 +162,7 @@ class WorkerManager:
                 exitcode = status >> 8
                 logger.info(f"Child process {child_pid} exit with code {exitcode}!")
 
-                if exitcode > 0:
-                    self.list_reap_pid.append(child_pid)
+                self.list_reap_pid.append(child_pid)
 
             except OSError as e:
                 logger.error(f"Handle SIGCHLD failed.{e}.")
