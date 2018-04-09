@@ -6,7 +6,7 @@
 import logging
 import sys
 from enum import Enum, unique
-from .configurator import env
+from app.configurator import env
 
 
 class _Stream2Logger(object):
