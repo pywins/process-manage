@@ -4,13 +4,12 @@
 # @File    : worker_base.py
 import os
 import uuid
-import time
 import signal
 import threading
 from abc import abstractmethod
 from multiprocessing import Queue, Process
 from singleton import singleton
-from app.core.logger import logger
+from app.logger import logger
 from app.decorator import wins_coro
 
 
@@ -101,7 +100,7 @@ class WorkerManager:
                     with self._lock:
                         self._worker_count += 1
             else:
-                time.sleep(1)
+                self._sig_child_queue.get(timeout=10)
 
     def sig_child_listener_callback(self):
         while True:
@@ -126,7 +125,7 @@ class WorkerManager:
         :param frame:
         :return:
         """
-        self._sig_child_queue.put(1, False)
+        self._sig_child_queue.put(signum, True)
 
     @wins_coro
     def check_workers(self):

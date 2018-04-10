@@ -4,8 +4,9 @@
 # @File    : worker_base.py
 import importlib
 from singleton import singleton
-from .configurator import env
 from app.core import *
+from .configurator import env
+from .logger import logger
 
 
 @singleton()
