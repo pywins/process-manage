@@ -3,16 +3,13 @@
 # @Author  : yx.wu
 # @File    : worker_base.py
 import os
-import abc
-import signal
 import uuid
-import threading
-
-from multiprocessing import Value, Queue, Process
-
 import time
+import signal
+import threading
+from abc import abstractmethod
+from multiprocessing import Queue, Process
 from singleton import singleton
-
 from app.core.logger import logger
 from app.decorator import wins_coro
 
@@ -21,7 +18,7 @@ class BaseWorker(object):
     def __init__(self):
         self.alive = True
 
-    @abc.abstractmethod
+    @abstractmethod
     def run(self):
         pass
 
@@ -43,7 +40,6 @@ class WorkerMetadata:
     The main application will manage a list of object which create from this class.
     """
     def __init__(self, worker: BaseWorker):
-
         self.flag = uuid.uuid1()
         self.target = worker.start
         self.worker = worker
@@ -62,7 +58,7 @@ class _WorkerListener(threading.Thread):
 
 @singleton()
 class WorkerManager:
-    MAX_WORKER_NUMBER = 7
+    MAX_WORKER_NUMBER = 4
 
     def __init__(self):
         self._lock = threading.Lock()
@@ -102,9 +98,10 @@ class WorkerManager:
                 meta = self._worker_queue.get()
                 if isinstance(meta, WorkerMetadata):
                     self._new_worker(meta)
-                    self._worker_count += 1
+                    with self._lock:
+                        self._worker_count += 1
             else:
-                time.sleep(5)
+                time.sleep(1)
 
     def sig_child_listener_callback(self):
         while True:
@@ -140,31 +137,26 @@ class WorkerManager:
         while True:
             yield
             self.get_zombie_pid()
-
             if not self.list_reap_pid:
                 continue
 
             for pid in self.list_reap_pid:
                 self.list_reap_pid.remove(pid)
                 self._worker_count -= 1
-
             logger.debug("after reap zombie process.")
 
     def get_zombie_pid(self):
         while True:
             try:
                 child_pid, status = os.waitpid(-1, os.WNOHANG)
-
                 if not child_pid:
                     logger.debug("No child process was immediately available!")
                     break
 
                 exitcode = status >> 8
                 logger.info(f"Child process {child_pid} exit with code {exitcode}!")
-
                 self.list_reap_pid.append(child_pid)
-
             except OSError as e:
-                logger.error(f"Handle SIGCHLD failed.{e}.")
+                logger.debug(f"Handle SIGCHLD failed.{e}.")
                 break
 
