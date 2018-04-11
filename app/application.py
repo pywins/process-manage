@@ -22,6 +22,7 @@ class Application:
 
         self.worker_manager.init()
         self._parse_all_workers(workers_config)
+        self.worker_manager.join()
 
     def _parse_all_workers(self, workers_config):
         """

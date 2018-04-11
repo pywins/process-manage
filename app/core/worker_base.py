@@ -6,6 +6,7 @@ import os
 import uuid
 import signal
 import threading
+import select
 from abc import abstractmethod
 from multiprocessing import Queue, Process
 from singleton import singleton
@@ -51,7 +52,7 @@ class _WorkerListener(threading.Thread):
     Define a new type for thread.
     """
     def __init__(self, group=None, target=None, name=None, args=(), kwargs=None, *, daemon=None):
-        logger.debug("Worker Listener init")
+        logger.debug(f"thread {name} init")
         super().__init__(group, target, name, args, kwargs, daemon=daemon)
 
 
@@ -61,52 +62,54 @@ class WorkerManager:
 
     def __init__(self):
         self._lock = threading.Lock()
-        self._worker_listener = None
-        self._sig_child_listener = None
-        self._worker_info = {}
         self._worker_queue = Queue()
+        self._worker_queue_listener = None
         self._sig_child_queue = Queue()
+        self._sig_child_queue_listener = None
         self._worker_count = 0
-        self.list_reap_pid = []
-        self.checker = self.check_workers()
+        self._worker_checker = self._check_workers()
+        self._worker_info = {}
 
     def init(self):
-        if not self._worker_listener:
-            self._worker_listener = _WorkerListener(name="WorkerListener", target=self.worker_listener_callback)
-            self._worker_listener.start()
+        if not self._worker_queue_listener:
+            self._worker_queue_listener = _WorkerListener(
+                name="WorkerQueueListener", target=self._cb_worker_queue_listener
+            )
+            self._worker_queue_listener.start()
+        if not self._sig_child_queue_listener:
+            self._sig_child_queue_listener = _WorkerListener(
+                name="SigChildQueueListener", target=self._cb_sig_child_queue_listener
+            )
+            self._sig_child_queue_listener.start()
+        self._init_signals()
 
-        if not self._sig_child_listener:
-            self._sig_child_listener = _WorkerListener(name="SigChildListener", target=self.sig_child_listener_callback)
-            self._sig_child_listener.start()
-
-        self.init_signals()
+    def join(self):
+        self._worker_queue_listener.join()
+        self._sig_child_queue_listener.join()
 
     def append(self, worker_class, worker_number):
-        if not self._worker_listener or not self._sig_child_listener:
-            self.init()
-
         if issubclass(worker_class, BaseWorker):
             while worker_number > 0:
                 meta = WorkerMetadata(worker=worker_class())
                 self._worker_queue.put(meta, False)
                 worker_number -= 1
 
-    def worker_listener_callback(self):
+    def _cb_worker_queue_listener(self):
         while True:
             if self._worker_count < self.MAX_WORKER_NUMBER:
                 meta = self._worker_queue.get()
                 if isinstance(meta, WorkerMetadata):
-                    self._new_worker(meta)
                     with self._lock:
-                        self._worker_count += 1
+                        self._new_worker(meta)
+                        self._worker_count = len(self._worker_info.keys())
             else:
-                self._sig_child_queue.get(timeout=10)
+                select.select([], [], [], 1)
 
-    def sig_child_listener_callback(self):
+    def _cb_sig_child_queue_listener(self):
         while True:
             self._sig_child_queue.get()
             with self._lock:
-                next(self.checker)
+                next(self._worker_checker)
 
     def _new_worker(self, meta: WorkerMetadata):
         logger.debug(f"start worker{meta}")
@@ -115,47 +118,52 @@ class WorkerManager:
         meta.pid = proc.pid
         self._worker_info[meta.pid] = meta
 
-    def init_signals(self):
-        signal.signal(signal.SIGCHLD, self.handle_child)
+    def _init_signals(self):
+        signal.signal(signal.SIGCHLD, self._handle_child)
 
-    def handle_child(self, signum, frame):
+    def _handle_child(self, signum, frame):
         """
-        SIGCHLD 信号处理方法，主要工作，记录子进程 ID
+        signal processor, record a sigchild has occurred.
+        so the function will return quickly.
         :param signum:
         :param frame:
-        :return:
         """
-        self._sig_child_queue.put(signum, True)
+        self._sig_child_queue.put(signum)
 
     @wins_coro
-    def check_workers(self):
+    def _check_workers(self):
         """
-        检查子进程是否异常：如果子进程的处理在主进程的管理对象中，则重启，如果是异常数据则丢弃
-        :return:
+        A generator for check all the zombie child process. It will run when the sigchild queue not empty.
         """
         while True:
             yield
-            self.get_zombie_pid()
-            if not self.list_reap_pid:
+            reap_pids = self._quit_pids()
+            if not reap_pids:
                 continue
+            for pid in reap_pids:
+                # in multiprocess, the worker count must been lock, but this function is a generator,
+                # and we have locked for the next function
+                if pid in self._worker_info.keys():
+                    del self._worker_info[pid]
+                    self._worker_count = len(self._worker_info.keys())
+                # restart if need
 
-            for pid in self.list_reap_pid:
-                self.list_reap_pid.remove(pid)
-                self._worker_count -= 1
-            logger.debug("after reap zombie process.")
-
-    def get_zombie_pid(self):
+    @staticmethod
+    def _quit_pids():
+        """
+        Using waitpid() function to get the child process's pid which quited.
+        """
+        pids = []
         while True:
             try:
                 child_pid, status = os.waitpid(-1, os.WNOHANG)
+                # no more child in zombie status, break and reap child processes
                 if not child_pid:
-                    logger.debug("No child process was immediately available!")
                     break
-
                 exitcode = status >> 8
                 logger.info(f"Child process {child_pid} exit with code {exitcode}!")
-                self.list_reap_pid.append(child_pid)
+                pids.append(child_pid)
             except OSError as e:
                 logger.debug(f"Handle SIGCHLD failed.{e}.")
                 break
-
+        return pids
