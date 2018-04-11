@@ -6,7 +6,7 @@
 import logging
 import sys
 from enum import Enum, unique
-from .configurator import env
+from app.configurator import env
 
 
 class _Stream2Logger(object):
@@ -14,11 +14,8 @@ class _Stream2Logger(object):
     Redirect the stream like stdout or stderr into the logger.
     The stdout and stderr could bee assign with a new object which have a write function,
     like write(self, buf). So we define a class for it.
-
     example : sys.stderr = StreamToLogger(logger, logging.DEBUG)
-
     """
-
     def __init__(self, logger_object: logging.Logger, logger_level=logging.INFO):
         """
         Create stream to logger object
@@ -55,12 +52,10 @@ class _Logger(logging.Logger):
         :param level:
         """
         logging.Logger.__init__(self, name, level)
-
         # create formatter
         log_format = "%(asctime)-15s [%(process)d] [%(levelname)s] %(message)s %(filename)s(%(lineno)d)"
         date_format = "%Y-%m-%d %X"
         formatter = logging.Formatter(log_format, date_format)
-
         log_out = env("log_out", "log", [LOG_HANDLE_STDOUT])
         log_path = env("log_file", "log")
 
@@ -68,7 +63,6 @@ class _Logger(logging.Logger):
             # create file handler
             file_handler = logging.FileHandler(log_path)
             file_handler.setLevel(level)
-
             # add handler and formatter to logger
             file_handler.setFormatter(formatter)
             self.addHandler(file_handler)
@@ -77,11 +71,9 @@ class _Logger(logging.Logger):
             # create stdout handler
             stdout_handler = logging.StreamHandler(sys.stdout)
             stdout_handler.setLevel(level)
-
             # add handler and formatter to logger
             stdout_handler.setFormatter(formatter)
             self.addHandler(stdout_handler)
-
             # redirect stdout & stderr
             sl = _Stream2Logger(self, level)
             sys.stdout = sl

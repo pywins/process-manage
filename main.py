@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # @Time    : 2018/4/4 上午9:51
 # @Author  : yx.wu
-# @File    : base.py
+# @File    : worker_base.py
 
 import os
 import app

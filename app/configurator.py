@@ -14,7 +14,6 @@ class Configurator:
 
     def load(self, config_file):
         self.config = toml.load(config_file)
-
         return self.config
 
     def get(self, key=None, section=None, default=None):
@@ -24,7 +23,6 @@ class Configurator:
         config = self.config if (not section) else self.config.get(section, None)
         if config:
             return config.get(key, default)
-
         return default
 
 
