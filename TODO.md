@@ -7,9 +7,8 @@
 - [x] graceful kill child process
 - [ ] graceful stop child process while master process shutdown
 - [ ] maybe we should reconstruct the logger module
-- [ ] encapsulate fork subprocess (more than one call `Process(target=o.start)` )
-- [ ] what if i want multiprocess run `putworker` and multiprocess run `otherworker`
-- [ ] maybe we should reconstruct the logger module
+- [x] encapsulate fork subprocess (more than one call `Process(target=o.start)` )
+- [x] what if i want multiprocess run `putworker` and multiprocess run `otherworker`
 
 ## Issue
 

@@ -10,7 +10,7 @@ import os
 from app.core.worker_base import BaseWorker
 
 
-class PutWorker(BaseWorker):
+class ReadWorker(BaseWorker):
     def run(self, *args, **kv):
         print(f"{os.getpid()} run ...")
         length = random.randrange(5, 15)

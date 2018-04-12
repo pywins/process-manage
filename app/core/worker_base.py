@@ -8,10 +8,14 @@ import signal
 import threading
 import select
 from abc import abstractmethod
-from multiprocessing import Queue, Process
+from multiprocessing import Queue, Process, Value
+
 from singleton import singleton
 from app.logger import logger
 from app.decorator import wins_coro
+
+WORKER_EXIT_CODE_ERROR = -1
+WORKER_EXIT_SUCCESS = 0
 
 
 class BaseWorker(object):
@@ -22,9 +26,13 @@ class BaseWorker(object):
     def run(self):
         pass
 
-    def start(self):
+    def start(self, proc_shared_value):
         signal.signal(signal.SIGQUIT, self.quit_handler)
-        self.run()
+        try:
+            self.run()
+            proc_shared_value.value = WORKER_EXIT_SUCCESS
+        except Exception:
+            pass
 
     def quit_handler(self):
         self.alive = False
@@ -41,10 +49,13 @@ class WorkerMetadata:
     """
     def __init__(self, worker: BaseWorker):
         self.flag = uuid.uuid1()
+        self.title = self.flag
         self.target = worker.start
         self.worker = worker
-        self.pid = None
-        self.alive = None
+        self.proc_shared_exit_code = None
+
+    def reset(self):
+        self.proc_shared_exit_code = None
 
 
 class _WorkerListener(threading.Thread):
@@ -65,7 +76,6 @@ class WorkerManager:
         self._worker_queue = Queue()
         self._worker_queue_listener = None
         self._sig_child_queue = Queue()
-        self._sig_child_queue_listener = None
         self._worker_count = 0
         self._worker_checker = self._check_workers()
         self._worker_info = {}
@@ -75,22 +85,18 @@ class WorkerManager:
             self._worker_queue_listener = _WorkerListener(
                 name="WorkerQueueListener", target=self._cb_worker_queue_listener
             )
+            self._worker_queue_listener.setDaemon(True)
             self._worker_queue_listener.start()
-        if not self._sig_child_queue_listener:
-            self._sig_child_queue_listener = _WorkerListener(
-                name="SigChildQueueListener", target=self._cb_sig_child_queue_listener
-            )
-            self._sig_child_queue_listener.start()
         self._init_signals()
 
     def join(self):
-        self._worker_queue_listener.join()
-        self._sig_child_queue_listener.join()
+        self._cb_sig_child_queue_listener()
 
     def append(self, worker_class, worker_number):
         if issubclass(worker_class, BaseWorker):
             while worker_number > 0:
                 meta = WorkerMetadata(worker=worker_class())
+                meta.title = f"python {worker_class}----{worker_number}"
                 self._worker_queue.put(meta, False)
                 worker_number -= 1
 
@@ -113,10 +119,10 @@ class WorkerManager:
 
     def _new_worker(self, meta: WorkerMetadata):
         logger.debug(f"start worker{meta}")
-        proc = Process(target=meta.target)
+        meta.proc_shared_exit_code = Value('i', WORKER_EXIT_CODE_ERROR)
+        proc = Process(target=meta.target, name=meta.title, args=(meta.proc_shared_exit_code,))
         proc.start()
-        meta.pid = proc.pid
-        self._worker_info[meta.pid] = meta
+        self._worker_info[proc.pid] = meta
 
     def _init_signals(self):
         signal.signal(signal.SIGCHLD, self._handle_child)
@@ -128,6 +134,7 @@ class WorkerManager:
         :param signum:
         :param frame:
         """
+        del frame
         self._sig_child_queue.put(signum)
 
     @wins_coro
@@ -143,10 +150,17 @@ class WorkerManager:
             for pid in reap_pids:
                 # in multiprocess, the worker count must been lock, but this function is a generator,
                 # and we have locked for the next function
+                meta = None
                 if pid in self._worker_info.keys():
+                    meta = self._worker_info.get(pid)
                     del self._worker_info[pid]
                     self._worker_count = len(self._worker_info.keys())
                 # restart if need
+                if meta and isinstance(meta, WorkerMetadata):
+                    proc_shared_exit_code = meta.proc_shared_exit_code.value
+                    if proc_shared_exit_code == WORKER_EXIT_CODE_ERROR:
+                        meta.reset()
+                        self._worker_queue.put(meta)
 
     @staticmethod
     def _quit_pids():
