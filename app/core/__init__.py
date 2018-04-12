@@ -6,3 +6,4 @@
 from .worker_base import BaseWorker
 from .worker_base import WorkerMetadata
 from .worker_base import WorkerManager
+from ._pid import PIDManager

@@ -12,14 +12,12 @@ from .logger import logger
 @singleton()
 class Application:
     def __init__(self):
-        self.config = {}
+        self.pid_manager = None
         self.worker_manager = WorkerManager()
 
     def run(self):
+        self._lock_pid()
         workers_config = env(key="workers")
-
-        logger.info("app started")
-
         self.worker_manager.init()
         self._parse_all_workers(workers_config)
         self.worker_manager.join()
@@ -58,4 +56,9 @@ class Application:
             self.worker_manager.append(worker_class, worker_number)
         except TypeError as e:
             logger.error(f"Module {worker_class} is error.\n\t {e}")
+
+    def _lock_pid(self):
+        pid_path = env("pid", "app", "/var/run/proc_mgr.pid")
+        self.pid_manager = PIDManager(path=pid_path)
+        self.pid_manager.acquire()
 
