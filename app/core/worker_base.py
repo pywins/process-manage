@@ -9,6 +9,7 @@ import threading
 import select
 from abc import abstractmethod
 from multiprocessing import Queue, Process, Value
+from setproctitle import setproctitle
 
 from singleton import singleton
 from app.logger import logger
@@ -67,6 +68,15 @@ class _WorkerListener(threading.Thread):
         super().__init__(group, target, name, args, kwargs, daemon=daemon)
 
 
+class _Process(Process):
+    def __init__(self, group=None, target=None, name=None, args=(), kwargs={}):
+        super().__init__(group, target, name, args, kwargs)
+
+    def start(self):
+        setproctitle(self.name)
+        super().start()
+
+
 @singleton()
 class WorkerManager:
     MAX_WORKER_NUMBER = 4
@@ -96,7 +106,7 @@ class WorkerManager:
         if issubclass(worker_class, BaseWorker):
             while worker_number > 0:
                 meta = WorkerMetadata(worker=worker_class())
-                meta.title = f"python {worker_class}----{worker_number}"
+                meta.title = f"ProcessManager {worker_class}-{worker_number}"
                 self._worker_queue.put(meta, False)
                 worker_number -= 1
 
@@ -120,7 +130,7 @@ class WorkerManager:
     def _new_worker(self, meta: WorkerMetadata):
         logger.debug(f"start worker{meta}")
         meta.proc_shared_exit_code = Value('i', WORKER_EXIT_CODE_ERROR)
-        proc = Process(target=meta.target, name=meta.title, args=(meta.proc_shared_exit_code,))
+        proc = _Process(target=meta.target, name=meta.title, args=(meta.proc_shared_exit_code,))
         proc.start()
         self._worker_info[proc.pid] = meta
 

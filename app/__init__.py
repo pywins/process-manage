@@ -3,6 +3,8 @@
 # @Author  : yx.wu
 # @File    : __init__.py
 import os
+from setproctitle import setproctitle
+
 from .configurator import load, env
 from pid import PidFile, PidFileAlreadyLockedError
 
@@ -10,6 +12,8 @@ from pid import PidFile, PidFileAlreadyLockedError
 def run(config):
     # load config
     load(config=config)
+    title = env("title", 'app', 'ProcessManager')
+    setproctitle(title)
     # pid directory default is '/var/run'
     # in the PidFile class, will use default if the param piddir is None
     piddir = env('piddir', 'app')
