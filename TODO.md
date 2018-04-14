@@ -3,7 +3,7 @@
 ## The function of the missing
 
 - [x] config support
-- [ ] pid storage to file 
+- [x] pid storage to file
 - [x] graceful kill child process
 - [ ] graceful stop child process while master process shutdown
 - [ ] maybe we should reconstruct the logger module

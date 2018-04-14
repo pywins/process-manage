@@ -16,7 +16,6 @@ class Application:
         self.worker_manager = WorkerManager()
 
     def run(self):
-        self._lock_pid()
         workers_config = env(key="workers")
         self.worker_manager.init()
         self._parse_all_workers(workers_config)
@@ -56,9 +55,4 @@ class Application:
             self.worker_manager.append(worker_class, worker_number)
         except TypeError as e:
             logger.error(f"Module {worker_class} is error.\n\t {e}")
-
-    def _lock_pid(self):
-        pid_path = env("pid", "app", "/var/run/proc_mgr.pid")
-        self.pid_manager = PIDManager(path=pid_path)
-        self.pid_manager.acquire()
 
