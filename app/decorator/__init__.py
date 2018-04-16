@@ -1,11 +1,3 @@
-from functools import wraps
+from .wins import *
 
-
-def wins_coro(func):
-    @wraps(func)
-    def primer(*args, **kwargs):
-        gen = func(*args, **kwargs)
-        next(gen)
-        return gen
-
-    return primer
+__all__ = ["wins_coro"]
