@@ -12,16 +12,14 @@ from .logger import logger
 @singleton()
 class Application:
     def __init__(self):
-        self.config = {}
+        self.pid_manager = None
         self.worker_manager = WorkerManager()
 
     def run(self):
         workers_config = env(key="workers")
-
-        logger.info("app started")
-
         self.worker_manager.init()
         self._parse_all_workers(workers_config)
+        self.worker_manager.join()
 
     def _parse_all_workers(self, workers_config):
         """
