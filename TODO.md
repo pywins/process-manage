@@ -9,6 +9,7 @@
 - [ ] maybe we should reconstruct the logger module
 - [x] encapsulate fork subprocess (more than one call `Process(target=o.start)` )
 - [x] what if i want multiprocess run `putworker` and multiprocess run `otherworker`
+- [ ] StopIterator while yield repeat call next
 
 ## Issue
 
