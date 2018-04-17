@@ -3,10 +3,31 @@
 # @Author  : yx.wu
 # @File    : worker_base.py
 import importlib
+import os
+from setproctitle import setproctitle
+
+from pid import PidFile, PidFileAlreadyLockedError
 from singleton import singleton
+
+from app import logger
 from app.core import *
 from .configurator import env
-from .logger import logger
+
+
+def run():
+    title = env("title", 'app', 'ProcessManager')
+    setproctitle(title)
+    # pid directory default is '/var/run'
+    # in the PidFile class, will use default if the param piddir is None
+    piddir = env('piddir', 'app')
+    piddir = os.path.abspath(piddir)
+    try:
+        with PidFile('proc_mgr', piddir=piddir):
+            # application start
+            Application().run()
+    except PidFileAlreadyLockedError:
+        logger.error("A process manager process is running.")
+        exit(0)
 
 
 @singleton()
@@ -55,4 +76,3 @@ class Application:
             self.worker_manager.append(worker_class, worker_number)
         except TypeError as e:
             logger.error(f"Module {worker_class} is error.\n\t {e}")
-

@@ -4,9 +4,10 @@
 # @File    : worker_base.py
 
 import os
-import app
+
+from app import application
 
 if __name__ == '__main__':
-    app.run('conf/app.conf')
+    application.run()
 
     print(f'All subprocesses done.{os.getpid()}')

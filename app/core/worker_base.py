@@ -3,16 +3,17 @@
 # @Author  : yx.wu
 # @File    : worker_base.py
 import os
-import uuid
+import select
 import signal
 import threading
-import select
+import uuid
 from abc import abstractmethod
 from multiprocessing import Queue, Process, Value
 from setproctitle import setproctitle
 
 from singleton import singleton
-from app.logger import logger
+
+from app import logger
 from app.decorator import wins_coro
 
 WORKER_EXIT_CODE_ERROR = -1
@@ -48,6 +49,7 @@ class WorkerMetadata:
     The metadata for a worker.
     The main application will manage a list of object which create from this class.
     """
+
     def __init__(self, worker: BaseWorker):
         self.flag = uuid.uuid1()
         self.title = self.flag
@@ -63,6 +65,7 @@ class _WorkerListener(threading.Thread):
     """
     Define a new type for thread.
     """
+
     def __init__(self, group=None, target=None, name=None, args=(), kwargs=None, *, daemon=None):
         logger.debug(f"thread {name} init")
         super().__init__(group, target, name, args, kwargs, daemon=daemon)
