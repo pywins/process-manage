@@ -54,6 +54,7 @@ class WorkerMetadata:
     def reset(self):
         self.proc_shared_exit_code = None
 
+
 class _Process(Process):
     def __init__(self, group=None, target=None, name=None, args=(), kwargs={}):
         super().__init__(group, target, name, args, kwargs)
@@ -65,8 +66,6 @@ class _Process(Process):
 
 @singleton()
 class WorkerManager:
-    MAX_WORKER_NUMBER = 4
-
     def __init__(self):
         self.worker_count = 0
         self.worker_info = {}
@@ -74,12 +73,13 @@ class WorkerManager:
         self.worker_reap = asyncio.Queue()
         self.lock = asyncio.Lock()
         self.sig_exit = [signal.SIGEMT, signal.SIGQUIT]
+        self.max_worker_number = 1
 
     async def ctrl_worker_task(self):
         while True:
             await asyncio.sleep(1)
             # check the worker count
-            if self.worker_count >= self.MAX_WORKER_NUMBER:
+            if self.worker_count >= self.max_worker_number:
                 continue
             # check the waiting queue
             if self.worker_ctrl.empty():
@@ -128,7 +128,8 @@ class WorkerManager:
         await asyncio.wait(ctrl_worker)
         reap_worker.cancel()
 
-    def init(self):
+    def init(self, max_worker_num):
+        self.max_worker_number = max_worker_num
         loop = asyncio.get_event_loop()
         try:
             for signum in self.sig_exit:
