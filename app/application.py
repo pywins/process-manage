@@ -38,9 +38,8 @@ class Application:
 
     def run(self):
         workers_config = env(key="workers")
-        self.worker_manager.init()
         self._parse_all_workers(workers_config)
-        self.worker_manager.join()
+        self.worker_manager.init()
 
     def _parse_all_workers(self, workers_config):
         """
