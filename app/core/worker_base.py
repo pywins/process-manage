@@ -49,6 +49,7 @@ class WorkerMetadata:
         self.title = self.flag
         self.target = worker.start
         self.worker = worker
+        self.proc = None
         self.proc_shared_exit_code = None
 
     def reset(self):
@@ -74,9 +75,12 @@ class WorkerManager:
         self.lock = asyncio.Lock()
         self.sig_exit = [signal.SIGEMT, signal.SIGQUIT]
         self.max_worker_number = 1
+        self.reap_worker = None
+        self.ctrl_worker = None
+        self.running = True
 
     async def ctrl_worker_task(self):
-        while True:
+        while self.running:
             await asyncio.sleep(1)
             # check the worker count
             if self.worker_count >= self.max_worker_number:
@@ -93,7 +97,7 @@ class WorkerManager:
                 self.worker_count = len(self.worker_info.keys())
 
     async def reap_worker_task(self):
-        while True:
+        while self.running:
             await self.worker_reap.get()
             # collect the zombie state process's pid, if there is empty, await when the next SIGCHLD single come
             reap_pids = self.get_quit_pids()
@@ -123,10 +127,9 @@ class WorkerManager:
             self.worker_reap.task_done()
 
     async def entry(self):
-        reap_worker = asyncio.ensure_future(self.reap_worker_task())
-        ctrl_worker = [self.ctrl_worker_task()]
-        await asyncio.wait(ctrl_worker)
-        reap_worker.cancel()
+        self.reap_worker = asyncio.ensure_future(self.reap_worker_task())
+        self.ctrl_worker = [self.ctrl_worker_task()]
+        await asyncio.wait(self.ctrl_worker)
 
     def init(self, max_worker_num):
         self.max_worker_number = max_worker_num
@@ -137,10 +140,9 @@ class WorkerManager:
             loop.add_signal_handler(signal.SIGCHLD, functools.partial(self.handle_child, signal.SIGCHLD, None))
             loop.run_until_complete(self.entry())
         except KeyboardInterrupt as e:
-            loop.stop()
             logger.error(f"Exit by {e}")
         finally:
-            loop.close()
+            self.handle_exit(None)
 
     def append(self, worker_class, worker_number):
         if issubclass(worker_class, BaseWorker):
@@ -155,6 +157,7 @@ class WorkerManager:
         meta.proc_shared_exit_code = Value('i', WORKER_EXIT_CODE_ERROR)
         proc = _Process(target=meta.target, name=meta.title, args=(meta.proc_shared_exit_code,))
         proc.start()
+        meta.proc = proc
         self.worker_info[proc.pid] = meta
 
     def handle_child(self, signum, frame):
@@ -167,10 +170,21 @@ class WorkerManager:
         del frame
         self.worker_reap.put_nowait(signum)
 
-    @staticmethod
-    def handle_exit(signum, loop: asyncio.AbstractEventLoop):
+    def handle_exit(self, signum):
         logger.error("got signal %s: exit" % signum)
-        loop.stop()
+        self.running = False
+        self.worker_ctrl.close()
+        self.worker_reap.put(None)
+        if self.reap_worker:
+            self.reap_worker.cancel()
+        for i in self.worker_info.keys():
+            meta = self.worker_info.get(i)
+            if not isinstance(meta, WorkerMetadata):
+                continue
+            if not isinstance(meta.proc, _Process):
+                continue
+            meta.proc.terminate()
+            meta.proc.join()
 
     @staticmethod
     def get_quit_pids():

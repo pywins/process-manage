@@ -33,7 +33,6 @@ def run():
 @singleton()
 class Application:
     def __init__(self):
-        self.pid_manager = None
         self.worker_manager = WorkerManager()
 
     def run(self):

@@ -5,11 +5,11 @@
 - [x] config support
 - [x] pid storage to file
 - [x] graceful kill child process
-- [ ] graceful stop child process while master process shutdown
-- [ ] maybe we should reconstruct the logger module
+- [x] graceful stop child process while master process shutdown
+- [x] maybe we should reconstruct the logger module
 - [x] encapsulate fork subprocess (more than one call `Process(target=o.start)` )
 - [x] what if i want multiprocess run `putworker` and multiprocess run `otherworker`
-- [ ] StopIterator while yield repeat call next
+- [x] StopIterator while yield repeat call next(`now no the question, because of queue used.`)
 
 ## Issue
 
